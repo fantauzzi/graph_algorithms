@@ -50,10 +50,11 @@ def bidir_dijkstra(graph, source, sink):
     shortest_so_far = float('inf')
     shortest_path_found = False
     step = 0
-    vertex1, vertex2, best_vertex2 = None, None, None  # Useful for debugging. At the end of the while loop, both must be not None
+    # Setting these to None here is useful for debugging: at the end of the while loop, they must be not None.
+    vertex1, vertex2, best_vertex2 = None, None, None
     while not shortest_path_found:
         # Do one step of Dijkstra in graph_1
-        if not pending_1:
+        if not pending_1:  # No more vertices up for processing now implies you can't reach sink from source.
             return -1, []
         d_f1, vertex1 = pending_1.pop(0)  # Pop the minimum.
         assert d_f1 == d_1[vertex1]  # Check the invariant (pending_1 and d_1 must be consistent)
@@ -65,6 +66,8 @@ def bidir_dijkstra(graph, source, sink):
                 d_1[vertex2] = float('inf')
                 pending_1.add((float('inf'), vertex2))
         best_vertex2 = None
+        ''' Relax all edges outgoing from vertex1 whose other end-point hasn't been processed yet, and check if any
+        of them potentially belongs to a shortest path from source to sink '''
         for vertex2 in graph_1.adj[vertex1]:
             # Length of the shortest path from the source to vertex2, going through vertex1.
             d_via_vertex1 = d_f1 + graph_1.edges[vertex1, vertex2]['weight']
@@ -81,14 +84,14 @@ def bidir_dijkstra(graph, source, sink):
             if vertex2 in processed_2:
                 length = d_via_vertex1 + d_2[vertex2]
                 shortest_so_far = min(shortest_so_far, length)
-                best_vertex2 = vertex2
+                best_vertex2 = vertex2  # Edge (vertex1, best_vertex2) is on the path from source to sink
         # Check termination condition.
         if pending_1 and pending_2:
             l1, _ = pending_1[0]
             l2, _ = pending_2[0]
             if l1 + l2 >= shortest_so_far:
                 shortest_path_found = True
-        ''' Trade graph_1 with grap_2 before the next step of Dijkstra. Therefore alternate one step in graph_1
+        ''' Trade graph_1 with grap_2 before the next step of Dijkstra: you are alternating one step in graph_1
         with one step in graph_2. '''
         graph_1, graph_2 = graph_2, graph_1
         pending_1, pending_2 = pending_2, pending_1
@@ -124,9 +127,9 @@ def bidir_dijkstra(graph, source, sink):
 
     sub_path_1 = backtrack_path(vertex1, pred_1)  # This is reversed
     sub_path_2 = backtrack_path(best_vertex2, pred_2)
-    path = sub_path_1[::-1] + sub_path_2
+    shortest_path = sub_path_1[::-1] + sub_path_2
 
-    # Compute the length of the shortest path, as the sum of the lengths of the stiched sub-paths.
+    # Compute the length of the shortest path, as the sum of the lengths of the stitched sub-paths.
     distance = d_1[best_vertex2] + d_2[best_vertex2] if step % 2 == 1 else d_1[vertex1] + d_2[vertex1]
 
-    return distance, path
+    return distance, shortest_path
