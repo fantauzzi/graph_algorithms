@@ -47,11 +47,10 @@ def bidir_dijkstra(graph, source, sink):
         d_2[vertex2] = float('inf')
         pending_2.add((float('inf'), sink))'''
 
-    shortest_so_far = float('inf')
     shortest_path_found = False
+    shortest_so_far = float('inf')
+    best_vertex1, best_vertex2 = None, None
     step = 0
-    # Setting these to None here is useful for debugging: at the end of the while loop, they must be not None.
-    vertex1, vertex2, best_vertex2 = None, None, None
     while not shortest_path_found:
         # Do one step of Dijkstra in graph_1
         if not pending_1:  # No more vertices up for processing now implies you can't reach sink from source.
@@ -65,7 +64,7 @@ def bidir_dijkstra(graph, source, sink):
                 assert vertex2 not in processed_1
                 d_1[vertex2] = float('inf')
                 pending_1.add((float('inf'), vertex2))
-        best_vertex2 = None
+        # best_vertex2 = None
         ''' Relax all edges outgoing from vertex1 whose other end-point hasn't been processed yet, and check if any
         of them potentially belongs to a shortest path from source to sink '''
         for vertex2 in graph_1.adj[vertex1]:
@@ -83,10 +82,13 @@ def bidir_dijkstra(graph, source, sink):
             from source to sink; update information on the shortest path found so far as necessary. '''
             if vertex2 in processed_2:
                 length = d_via_vertex1 + d_2[vertex2]
-                shortest_so_far = min(shortest_so_far, length)
-                best_vertex2 = vertex2  # Edge (vertex1, best_vertex2) is on the path from source to sink
+                if length < shortest_so_far:
+                    shortest_so_far = length
+                    # Edge (best_vertex1, best_vertex2) is on the shortest path found so far from source to sink
+                    best_vertex1 = vertex1
+                    best_vertex2 = vertex2
         # Check termination condition.
-        if pending_1 and pending_2:
+        if best_vertex2 is not None and pending_1 and pending_2:
             l1, _ = pending_1[0]
             l2, _ = pending_2[0]
             if l1 + l2 >= shortest_so_far:
@@ -101,7 +103,7 @@ def bidir_dijkstra(graph, source, sink):
         step += 1
 
     # A shortest path from source to sink was found, and it must go through vertex1 and then best_vertex2
-    assert vertex1 is not None
+    assert best_vertex1 is not None
     assert best_vertex2 is not None
 
     # Ensure that graph_1 is the same as graph, swapping graph_1 and graph_2 one more time if necessary.
@@ -112,7 +114,7 @@ def bidir_dijkstra(graph, source, sink):
         processed_1, processed_2 = processed_2, processed_1
         pred_1, pred_2 = pred_2, pred_1
     else:
-        vertex1, best_vertex2 = best_vertex2, vertex1
+        best_vertex1, best_vertex2 = best_vertex2, best_vertex1
 
     ''' Stitch together the shortest path as 
     source -> ... -> vertex1 -> best_vertex2 -> ... -> sink'''
@@ -125,11 +127,11 @@ def bidir_dijkstra(graph, source, sink):
             previous = pred[previous]
         return path
 
-    sub_path_1 = backtrack_path(vertex1, pred_1)  # This is reversed
+    sub_path_1 = backtrack_path(best_vertex1, pred_1)  # This is reversed
     sub_path_2 = backtrack_path(best_vertex2, pred_2)
     shortest_path = sub_path_1[::-1] + sub_path_2
 
     # Compute the length of the shortest path, as the sum of the lengths of the stitched sub-paths.
-    distance = d_1[best_vertex2] + d_2[best_vertex2] if step % 2 == 1 else d_1[vertex1] + d_2[vertex1]
+    distance = d_1[best_vertex2] + d_2[best_vertex2] if step % 2 == 1 else d_1[best_vertex1] + d_2[best_vertex1]
 
     return distance, shortest_path

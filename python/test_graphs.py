@@ -1,6 +1,7 @@
+import random
 from pathlib import Path
-from graphs import bidir_dijkstra
 import networkx as nx
+from graphs import bidir_dijkstra
 
 
 def fetch_graph(file_name):
@@ -21,6 +22,21 @@ def fetch_graph(file_name):
             queries.append(((vertex1, vertex2)))
 
     return edges, queries
+
+
+def fetch_facebook_graph(file_name):
+    with open(file_name) as input_file:
+        line = input_file.readline().rstrip('\n')
+        edges = []
+        while line:
+            v1, v2 = map(int, line.split(' '))
+            edges.append((v1, v2))
+            line = input_file.readline().rstrip('\n')
+
+    graph = nx.DiGraph()
+    graph.add_edges_from([(v1, v2, {'weight': 1}) for (v1, v2) in edges])
+
+    return graph
 
 
 def build_graph(edges) -> nx.DiGraph:
@@ -71,3 +87,25 @@ def test_bidir_dijkstra():
         distance, path = bidir_dijkstra(graph, source, sink)
         assert distance == 3
         assert path == [1, 2, 3]
+
+    graph = fetch_facebook_graph(Path('../test/facebook_combined.txt'))
+    '''    try:
+        expected = len(nx.shortest_path(graph, source=449, target=626)) - 1
+    except nx.NetworkXNoPath:
+        expected = -1
+    distance, path = bidir_dijkstra(graph, 449, 626)
+    assert distance == expected
+
+    return '''
+
+    random.seed(42)
+    for i in range(100):
+        source = random.randint(0, 4031)
+        sink = random.randint(0, 4031)
+        # print(i, source, sink)
+        try:
+            expected = len(nx.shortest_path(graph, source=source, target=sink)) - 1
+        except nx.NetworkXNoPath:
+            expected = -1
+        distance, path = bidir_dijkstra(graph, source, sink)
+        assert distance == expected
