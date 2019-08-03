@@ -1,8 +1,21 @@
-import time
+import os
+import urllib.request
+import gzip
 import random
 from pathlib import Path
 import networkx as nx
 from graphs import bidir_dijkstra
+
+
+def fetch_gzip(file_name, url):
+    if not os.path.exists(Path(file_name)):
+        if not os.path.exists(Path(file_name + '.gz')):
+            print('\nDownloading file', Path(file_name + '.gz'))
+            urllib.request.urlretrieve(url, Path(file_name + '.gz'))
+        print('Unzipping file', Path(file_name + '.gz'))
+        with gzip.open(Path(file_name + '.gz'), 'rb') as gzip_file, open(Path(file_name), 'wb') as out_file:
+            out_file.writelines(gzip_file)
+        os.remove(Path(file_name + '.gz'))
 
 
 def fetch_graph(file_name):
@@ -48,6 +61,13 @@ def build_graph(edges) -> nx.DiGraph:
 
 
 def test_bidir_dijkstra():
+    '''
+    Downloads datasets from "SNAP Datasets: Stanford Large Network Dataset Collection
+    Jure Leskovec and Andrej Krevl
+    http://snap.stanford.edu/data
+    June, 2014
+    '''
+
     edges, queries = fetch_graph(Path('../test/test03.txt'))
     graph = build_graph(edges)
     for source, sink in queries:
@@ -89,45 +109,33 @@ def test_bidir_dijkstra():
         assert distance == 3
         assert path == [1, 2, 3]
 
+    fb_filename = '../test/facebook_combined.txt'
+    fetch_gzip(fb_filename, 'https://snap.stanford.edu/data/facebook_combined.txt.gz')
     graph = fetch_social_media_combined(Path('../test/facebook_combined.txt'))
-    '''    try:
-        expected = len(nx.shortest_path(graph, source=449, target=626)) - 1
-    except nx.NetworkXNoPath:
-        expected = -1
-    distance, path = bidir_dijkstra(graph, 449, 626)
-    assert distance == expected
 
-    return '''
-
-    """
     random.seed(42)
     for i in range(100):
         source = random.randint(0, 4031)
         sink = random.randint(0, 4031)
-        # print(i, source, sink)
         try:
             expected = len(nx.shortest_path(graph, source=source, target=sink)) - 1
         except nx.NetworkXNoPath:
             expected = -1
         distance, path = bidir_dijkstra(graph, source, sink)
         assert distance == expected
-    """
 
-    graph = fetch_social_media_combined(Path('../test/twitter_combined.txt'))
+    twitter_filename = '../test/twitter_combined.txt'
+    fetch_gzip(twitter_filename, 'https://snap.stanford.edu/data/twitter_combined.txt.gz')
+    graph = fetch_social_media_combined(twitter_filename)
     nodes = list(graph.nodes)
+
     random.seed(42)
-    print()
     for i in range(10):
         source = random.choice(nodes)
         sink = random.choice(nodes)
-        print(i, source, sink)
-        t1 = time.process_time()
         try:
             expected = len(nx.shortest_path(graph, source=source, target=sink)) - 1
         except nx.NetworkXNoPath:
             expected = -1
-        t2 = time.process_time()
         distance, path = bidir_dijkstra(graph, source, sink)
-        t3 = time.process_time()
         assert distance == expected
-        print(distance, 'nx=',t2-t1, 'bidir-dijkstra=',t3-t2)
