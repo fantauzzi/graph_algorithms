@@ -145,7 +145,7 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink) 
     for (step_count = 0; !shortest_path_found; ++step_count) {
         // One step of Dijkstra, along on of the two directions
         if (pending_1.empty()) // No more pending vertices => sink is not reachable from source
-            return make_pair<int, vector<int>>(0, {});
+            return make_pair<int, vector<int>>(-1, {});
         /*  Pop the vertex with current minimum estimate of its shortest distance from its source, and mark it as
          * processed */
         auto[df_1, vertex1] = *pending_1.cbegin();
@@ -153,32 +153,34 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink) 
         pending_1.extract(pending_1.begin());
         processed_1.emplace(vertex1);
         // Add un-processed vertices adjacent to vertex1 to the pending vertices (unless already there).
-        for (const auto[vertex2, weight]: graph_1->at(vertex1))
-            if (!in(vertex2, d_1)) {
-                assert(!in(vertex2, processed_1));
-                d_1[vertex2] = std::numeric_limits<int>::max();
-                pending_1.emplace(make_pair(std::numeric_limits<int>::max(), vertex2));
-            }
-        /* Relax edges outgoing from vertex1, whose other end-point hasn't been processed yet, and check if any of
-         * them might belong to a shortest path from source to sink */
-        for (const auto[vertex2, weight]: graph_1->at(vertex1)) {
-            auto d_via_vertex1 = df_1 + weight;
-            if (!in(vertex2, processed_1)) {
-                auto df_2 = d_1[vertex2];
-                if (d_via_vertex1 < df_2) {
-                    d_1[vertex2] = d_via_vertex1;
-                    pending_1.extract(make_pair(df_2, vertex2));
-                    pending_1.emplace(make_pair(d_via_vertex1, vertex2));
-                    pred_1[vertex2] = vertex1;
+        if (in(vertex1, *graph_1)) {
+            for (const auto[vertex2, weight]: graph_1->at(vertex1))
+                if (!in(vertex2, d_1)) {
+                    assert(!in(vertex2, processed_1));
+                    d_1[vertex2] = std::numeric_limits<int>::max();
+                    pending_1.emplace(make_pair(std::numeric_limits<int>::max(), vertex2));
                 }
-            }
-            if (in(vertex2, processed_2)) {
-                auto length = d_via_vertex1 + d_2[vertex2];
-                if (length < shortest_so_far) {
-                    shortest_so_far = length;
-                    // Edge (best_vertex1, best_vertex2) is along the shortest path found so far from source to sink.
-                    best_vertex1 = vertex1;
-                    best_vertex2 = vertex2;
+            /* Relax edges outgoing from vertex1, whose other end-point hasn't been processed yet, and check if any of
+             * them might belong to a shortest path from source to sink */
+            for (const auto[vertex2, weight]: graph_1->at(vertex1)) {
+                auto d_via_vertex1 = df_1 + weight;
+                if (!in(vertex2, processed_1)) {
+                    auto df_2 = d_1[vertex2];
+                    if (d_via_vertex1 < df_2) {
+                        d_1[vertex2] = d_via_vertex1;
+                        pending_1.extract(make_pair(df_2, vertex2));
+                        pending_1.emplace(make_pair(d_via_vertex1, vertex2));
+                        pred_1[vertex2] = vertex1;
+                    }
+                }
+                if (in(vertex2, processed_2)) {
+                    auto length = d_via_vertex1 + d_2[vertex2];
+                    if (length < shortest_so_far) {
+                        shortest_so_far = length;
+                        // Edge (best_vertex1, best_vertex2) is along the shortest path found so far from source to sink.
+                        best_vertex1 = vertex1;
+                        best_vertex2 = vertex2;
+                    }
                 }
             }
         }
@@ -222,7 +224,7 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink) 
 
     // Compute the length of the shortest path, as the sum of the lengths of the two sub-paths.
     int distance = (step_count % 2 == 1) ? d_1[best_vertex2] + d_2[best_vertex2] : d_1[best_vertex1] +
-                                                                                   d_2[best_vertex2];
+                                                                                   d_2[best_vertex1];
     assert(distance == shortest_so_far);
 
     const auto res = make_pair(distance, shortest_path);
@@ -248,6 +250,40 @@ TEST_CASE("bidirectional_dijkstra") {
         REQUIRE(length == 5);
         REQUIRE(path == vector<int>({0, 1, 4, 5}));
     }
-    int dummy = 42;
 
+    test_case = fetch_graph_test_case("../../test/test04.txt");
+    for (auto query: test_case.queries) {
+        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(length == 5);
+        REQUIRE(path == vector<int>({0, 1, 3, 4}));
+    }
+
+    test_case = fetch_graph_test_case("../../test/test05.txt");
+    for (auto query: test_case.queries) {
+        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(length == 1);
+        REQUIRE(path == vector<int>({0, 1}));
+    }
+
+    test_case = fetch_graph_test_case("../../test/test06.txt");
+    for (auto query: test_case.queries) {
+        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(length == 3);
+        REQUIRE(path == vector<int>({0, 1, 2}));
+    }
+
+    test_case = fetch_graph_test_case("../../test/test01.txt");
+    vector<int> expected = {0, 0, 1, -1};
+    for (int i = 0; i < test_case.queries.size(); ++i) {
+        auto query = test_case.queries[i];
+        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(length == expected[i]);
+    }
+
+    test_case = fetch_graph_test_case("../../test/test02.txt");
+    for (auto query: test_case.queries) {
+        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(length == 3);
+        REQUIRE(path == vector<int>({1, 2, 3}));
+    }
 }
