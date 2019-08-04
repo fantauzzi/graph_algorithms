@@ -1,51 +1,253 @@
-#include <iostream>                  // for std::cout
-#include <utility>                   // for std::pair
-#include <algorithm>                 // for std::for_each
+#include <iostream>
+#include <utility>
+#include <algorithm>
+#include <vector>
+#include <map>
+#include <unordered_map>
+#include <unordered_set>
+#include <set>
+#include <stdexcept>
+#include <limits>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
+
+#define CATCH_CONFIG_MAIN
+
 #include "../include/catch.hpp"
 
-using namespace boost;
+using std::string;
+using std::vector;
+using std::ifstream;
+using std::istream;
+using std::pair;
+using std::tuple;
+using std::make_tuple;
+using std::make_pair;
+using std::cout;
+using std::endl;
+using std::unordered_map;
+using std::map;
+using std::multimap;
+using std::unordered_set;
+using std::set;
+using std::swap;
 
-int main(int,char*[])
-{
-    // create a typedef for the Graph type
-    typedef adjacency_list<vecS, vecS, bidirectionalS> Graph;
+typedef vector<pair<int, int>> AdjList;
+typedef unordered_map<int, AdjList> Graph;
 
-    // Make convenient labels for the vertices
-    enum { A, B, C, D, E, N };
-    const int num_vertices = N;
-    const char* name = "ABCDE";
+struct TestCase {
+    TestCase(Graph graph, vector<pair<int, int>> test_cases) : graph(std::move(graph)),
+                                                               queries(std::move(test_cases)) {}
 
-    // writing out the edges in the graph
-    typedef std::pair<int, int> Edge;
-    Edge edge_array[] =
-            { Edge(A,B), Edge(A,D), Edge(C,A), Edge(D,C),
-              Edge(C,E), Edge(B,D), Edge(D,E) };
-    const int num_edges = sizeof(edge_array)/sizeof(edge_array[0]);
+    Graph graph;
+    vector<pair<int, int>> queries;
+};
 
-    // declare a graph object
-    Graph g(num_vertices);
+void append_adj(Graph &graph, int v1, int v2, int w) {
+    if (graph.find(v1) == graph.end())
+        graph[v1] = {{v2, w}};
+    else
+        graph[v1].emplace_back(make_pair(v2, w));
+}
 
-    // add the edges to the graph object
-    for (int i = 0; i < num_edges; ++i)
-        add_edge(edge_array[i].first, edge_array[i].second, g);
-
-    typedef graph_traits<Graph>::vertex_descriptor Vertex;
-
-    // get the property map for vertex indices
-    typedef property_map<Graph, vertex_index_t>::type IndexMap;
-    IndexMap index = get(vertex_index, g);
-
-    std::cout << "vertices(g) = ";
-    typedef graph_traits<Graph>::vertex_iterator vertex_iter;
-    std::pair<vertex_iter, vertex_iter> vp;
-    for (vp = vertices(g); vp.first != vp.second; ++vp.first) {
-        Vertex v = *vp.first;
-        std::cout << index[v] <<  " ";
+TestCase fetch_graph_test_case(const string &file_name) {
+    ifstream input_file(file_name);
+    if (!input_file.is_open()) {
+        cout << "File not found: " << file_name << endl;
+        throw std::invalid_argument("File not found: " + file_name);
     }
-    std::cout << std::endl;
 
-    return 0;
+    int n_vertices, n_edges;
+    input_file >> n_vertices >> n_edges;
+    Graph graph;
+    for (int i = 0; i < n_edges; ++i) {
+        int v1, v2, w;
+        input_file >> v1 >> v2 >> w;
+        append_adj(graph, v1, v2, w);
+    }
+    int n_test_cases;
+    input_file >> n_test_cases;
+    vector<pair<int, int>> test_cases;
+    for (int i = 0; i < n_test_cases; ++i) {
+        int source, sink;
+        input_file >> source;
+        input_file >> sink;
+        test_cases.emplace_back(make_pair(source, sink));
+    }
+    auto res = TestCase(graph, test_cases);
+
+    return res;
+
+}
+
+template<typename Container, typename Value>
+bool in(Value value, const Container &container) {
+    return container.find(value) != container.end();
+}
+
+const auto None = std::numeric_limits<int>::min();
+
+vector<int> backtrack_path(int from_vertex, const map<int, int> &pred) {
+    vector<int> path = {from_vertex};
+    auto previous = pred.at(from_vertex);
+    while (previous != None) {
+        path.emplace_back(previous);
+        previous = pred.at(previous);
+    }
+
+    return path;
+}
+
+
+pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink) {
+    if (source == sink)
+        return make_pair<int, vector<int>>(0, {});
+
+    Graph const *graph_1 = &graph;
+    Graph reverse_graph;
+    for (const auto &item: graph) {
+        auto v1 = item.first;
+        auto adj_list = item.second;
+        for (const auto &adj: adj_list) {
+            auto v2 = adj.first;
+            auto w = adj.second;
+            append_adj(reverse_graph, v2, v1, w);
+        }
+    }
+    Graph const *graph_2 = &reverse_graph;
+
+    /* Vertices yet to be processed, for either direction. Each vertex is stored with the current estimate of its
+     * shortest distance from its source, as a pair <distance, vertex>. It allows accessing the vertex with the lowest
+     * distance in constant time. */
+    set<pair<int, int>> pending_1 = {{0, source}};
+    set<pair<int, int>> pending_2 = {{0, sink}};
+
+    /* Associates each vertex with the current estimate of its shortest distance from its source, the reciprocal of
+     * pending_1 and pending_2. It allows finding the current distance estimate of a given vertex in constant time. */
+    map<int, int> d_1 = {{source, 0}};
+    map<int, int> d_2 = {{sink, 0}};
+
+    /* Vertices already processed for the respective directions. If a vertex is in here, then its current distance
+     * estimate from its source is the actual shortest distance */
+    unordered_set<int> processed_1;
+    unordered_set<int> processed_2;
+
+    // Information useful to backtrack the shortest path to source/sink
+    map<int, int> pred_1 = {{source, None}};
+    map<int, int> pred_2 = {{sink, None}};
+
+    bool shortest_path_found = false;
+    int shortest_so_far = std::numeric_limits<int>::max();
+    int best_vertex1 = None;
+    int best_vertex2 = None;
+    int step_count;
+    for (step_count = 0; !shortest_path_found; ++step_count) {
+        // One step of Dijkstra, along on of the two directions
+        if (pending_1.empty()) // No more pending vertices => sink is not reachable from source
+            return make_pair<int, vector<int>>(0, {});
+        /*  Pop the vertex with current minimum estimate of its shortest distance from its source, and mark it as
+         * processed */
+        auto[df_1, vertex1] = *pending_1.cbegin();
+        assert(df_1 == d_1[vertex1]);  // Invariant: pending_1 and d_1 must be consistent
+        pending_1.extract(pending_1.begin());
+        processed_1.emplace(vertex1);
+        // Add un-processed vertices adjacent to vertex1 to the pending vertices (unless already there).
+        for (const auto[vertex2, weight]: graph_1->at(vertex1))
+            if (!in(vertex2, d_1)) {
+                assert(!in(vertex2, processed_1));
+                d_1[vertex2] = std::numeric_limits<int>::max();
+                pending_1.emplace(make_pair(std::numeric_limits<int>::max(), vertex2));
+            }
+        /* Relax edges outgoing from vertex1, whose other end-point hasn't been processed yet, and check if any of
+         * them might belong to a shortest path from source to sink */
+        for (const auto[vertex2, weight]: graph_1->at(vertex1)) {
+            auto d_via_vertex1 = df_1 + weight;
+            if (!in(vertex2, processed_1)) {
+                auto df_2 = d_1[vertex2];
+                if (d_via_vertex1 < df_2) {
+                    d_1[vertex2] = d_via_vertex1;
+                    pending_1.extract(make_pair(df_2, vertex2));
+                    pending_1.emplace(make_pair(d_via_vertex1, vertex2));
+                    pred_1[vertex2] = vertex1;
+                }
+            }
+            if (in(vertex2, processed_2)) {
+                auto length = d_via_vertex1 + d_2[vertex2];
+                if (length < shortest_so_far) {
+                    shortest_so_far = length;
+                    // Edge (best_vertex1, best_vertex2) is along the shortest path found so far from source to sink.
+                    best_vertex1 = vertex1;
+                    best_vertex2 = vertex2;
+                }
+            }
+        }
+        // Check termination condition
+        if (best_vertex2 != None && !pending_1.empty() && !pending_2.empty()) {
+            const auto[l1, dummy1] = *pending_1.cbegin();
+            const auto[l2, dummy2] = *pending_2.cbegin();
+            if (l1 + l2 >= shortest_so_far)
+                shortest_path_found = true;
+        }
+        /* Trade the information related to the two directions, as steps of the Dijkstra algorithms will alternate
+         * between them */
+        swap(graph_1, graph_2);
+        pending_1.swap(pending_2);
+        d_1.swap(d_2);
+        processed_1.swap(processed_2);
+        pred_1.swap(pred_2);
+    }
+
+    /* If you got here, a shortest path from source to sink was found, and it goes through edge (best_vertex1,
+     * best_vertex2). */
+    assert(best_vertex1 != None);
+    assert(best_vertex2 != None);
+
+    if (step_count % 2 == 1) {
+        swap(graph_1, graph_2);
+        pending_1.swap(pending_2);
+        d_1.swap(d_2);
+        processed_1.swap(processed_2);
+        pred_1.swap(pred_2);
+    } else
+        swap(best_vertex1, best_vertex2);
+
+    /* Stitch together the shortest path as:
+     * source -> ... -> vertex1 -> best_vertex2 -> ... -> sink''' */
+    auto sub_path_1 = backtrack_path(best_vertex1, pred_1); // This is reversed.
+    auto sub_path_2 = backtrack_path(best_vertex2, pred_2);
+    std::reverse(sub_path_1.begin(), sub_path_1.end());
+    vector<int> shortest_path = sub_path_1;
+    shortest_path.insert(shortest_path.end(), sub_path_2.begin(), sub_path_2.end());
+
+    // Compute the length of the shortest path, as the sum of the lengths of the two sub-paths.
+    int distance = (step_count % 2 == 1) ? d_1[best_vertex2] + d_2[best_vertex2] : d_1[best_vertex1] +
+                                                                                   d_2[best_vertex2];
+    assert(distance == shortest_so_far);
+
+    const auto res = make_pair(distance, shortest_path);
+    return res;
+}
+
+TEST_CASE("in") {
+    unordered_set<int> s = {1, 3, 5, 7, 9};
+    REQUIRE(in(1, s));
+    REQUIRE(in(3, s));
+    REQUIRE(in(5, s));
+    REQUIRE(in(7, s));
+    REQUIRE(in(9, s));
+    REQUIRE(!in(0, s));
+    REQUIRE(!in(4, s));
+
+}
+
+TEST_CASE("bidirectional_dijkstra") {
+    auto test_case = fetch_graph_test_case("../../test/test03.txt");
+    for (auto query: test_case.queries) {
+        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(length == 5);
+        REQUIRE(path == vector<int>({0, 1, 4, 5}));
+    }
+    int dummy = 42;
+
 }
