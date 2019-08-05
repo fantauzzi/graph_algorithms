@@ -105,7 +105,7 @@ TestCase fetch_graph_test_case(const string &file_name) {
     return res;
 }
 
-vector<tuple<int, int, int>> fetch_twitter_test_case(const string & file_name) {
+vector<tuple<int, int, int>> fetch_twitter_test_case(const string &file_name) {
     ifstream input_file(file_name);
     if (!input_file.is_open()) {
         cout << "File not found: " << file_name << endl;
@@ -384,38 +384,14 @@ TEST_CASE("bidirectional_dijkstra") {
     }
 
     SECTION("twitter") {
-
         string file_name = "../../test/twitter_combined.txt";
         auto graph = fetch_social_media_combined(file_name);
-        auto boost_graph = make_boost_graph(graph);
-
-        std::random_device rd;
-        std::mt19937 generator(rd());
-        generator.seed(42);
-        auto n_vertices = num_vertices(boost_graph);
-        std::uniform_int_distribution<> distribution2(0, n_vertices - 1);
-        std::vector<int> d2(n_vertices);
-        std::vector<int> vertices(n_vertices);
-        IndexMap index = get(boost::vertex_index, boost_graph);
-        int pos = 0;
-        for (auto vi = boost::vertices(boost_graph).first; vi != boost::vertices(boost_graph).second; ++vi, ++pos)
-            vertices[pos] = index(*vi);
-        assert(pos + 1 == n_vertices);
+        auto test_cases = fetch_twitter_test_case("../../test/twitter_tcs.txt");
 
         int count = 0;
-        for (int i = 0; i < 1; ++i) {
-            auto source = vertices[distribution2(generator)];
-            auto sink = vertices[distribution2(generator)];
-            auto boost_source = vertex(source, boost_graph);
-            auto boost_sink = vertex(sink, boost_graph);
-            dijkstra_shortest_paths(boost_graph, boost_source, boost::distance_map(&d2[0]));
-            auto boost_distance = d2[boost_sink];
-            if (boost_distance == numeric_limits<int>::max()) {
-                boost_distance = -1;
-                ++count;
-            }
+        for (const auto[source, sink, expected]: test_cases) {
             auto[distance, path] = bidir_dijkstra(graph, source, sink);
-            REQUIRE(distance == boost_distance);
+            REQUIRE(distance == expected);
             cout << distance << " ";
         }
         cout << "\ncount is " << count << endl;

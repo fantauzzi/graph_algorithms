@@ -115,7 +115,7 @@ def test_bidir_dijkstra():
     graph = fetch_social_media_combined(Path('../test/facebook_combined.txt'))
 
     random.seed(42)
-    for i in range(1):
+    for i in range(100):
         source = random.randint(0, 4031)
         sink = random.randint(0, 4031)
         try:
@@ -124,6 +124,7 @@ def test_bidir_dijkstra():
             expected = -1
         distance, path = bidir_dijkstra(graph, source, sink)
         assert distance == expected
+        assert distance == len(path) - 1 if path else -1;
 
     twitter_filename = '../test/twitter_combined.txt'
     fetch_gzip(twitter_filename, 'https://snap.stanford.edu/data/twitter_combined.txt.gz')
@@ -131,14 +132,15 @@ def test_bidir_dijkstra():
     nodes = list(graph.nodes)
 
     random.seed(42)
-    with open(Path('../test/twitter_tcs.txt'), 'wt') as output_file:
-        for i in range(10):
-            source = random.choice(nodes)
-            sink = random.choice(nodes)
-            try:
-                expected = len(nx.shortest_path(graph, source=source, target=sink)) - 1
-            except nx.NetworkXNoPath:
-                expected = -1
-            distance, path = bidir_dijkstra(graph, source, sink)
-            assert distance == expected
-            print(source, sink, expected, file = output_file)
+    # with open(Path('../test/twitter_tcs.txt'), 'wt') as output_file:
+    for i in range(10):
+        source = random.choice(nodes)
+        sink = random.choice(nodes)
+        try:
+            expected = len(nx.shortest_path(graph, source=source, target=sink)) - 1
+        except nx.NetworkXNoPath:
+            expected = -1
+        distance, path = bidir_dijkstra(graph, source, sink)
+        assert distance == expected
+        assert distance == len(path) - 1 if path else -1;
+        # print(source, sink, expected, file = output_file)
