@@ -38,7 +38,7 @@ def fetch_graph(file_name):
     return edges, queries
 
 
-def fetch_social_media_combined(file_name):
+def fetch_social_media_combined(file_name, make_bidir=False):
     with open(file_name) as input_file:
         line = input_file.readline().rstrip('\n')
         edges = []
@@ -49,7 +49,8 @@ def fetch_social_media_combined(file_name):
 
     graph = nx.DiGraph()
     graph.add_edges_from([(v1, v2, {'weight': 1}) for (v1, v2) in edges])
-    graph.add_edges_from([(v2, v1, {'weight': 1}) for (v1, v2) in edges])
+    if make_bidir:
+        graph.add_edges_from([(v2, v1, {'weight': 1}) for (v1, v2) in edges])
 
     return graph
 
@@ -112,7 +113,7 @@ def test_bidir_dijkstra():
 
     fb_filename = '../test/facebook_combined.txt'
     fetch_gzip(fb_filename, 'https://snap.stanford.edu/data/facebook_combined.txt.gz')
-    graph = fetch_social_media_combined(Path('../test/facebook_combined.txt'))
+    graph = fetch_social_media_combined(Path('../test/facebook_combined.txt'), make_bidir=True)
 
     random.seed(42)
     for i in range(100):
@@ -128,7 +129,7 @@ def test_bidir_dijkstra():
 
     twitter_filename = '../test/twitter_combined.txt'
     fetch_gzip(twitter_filename, 'https://snap.stanford.edu/data/twitter_combined.txt.gz')
-    graph = fetch_social_media_combined(twitter_filename)
+    graph = fetch_social_media_combined(Path(twitter_filename), make_bidir=False)
     nodes = list(graph.nodes)
 
     random.seed(42)
