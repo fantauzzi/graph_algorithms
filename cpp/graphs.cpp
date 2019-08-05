@@ -8,7 +8,7 @@
 #include <set>
 #include <stdexcept>
 #include <limits>
-#include <boost/graph/graph_traits.hpp>
+#include <random>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 
@@ -32,9 +32,31 @@ using std::multimap;
 using std::unordered_set;
 using std::set;
 using std::swap;
+using std::numeric_limits;
 
 typedef vector<pair<int, int>> AdjList;
 typedef unordered_map<int, AdjList> Graph;
+typedef boost::adjacency_list<boost::listS, boost::vecS, boost::directedS, boost::no_property, boost::property<boost::edge_weight_t, int>> BoostGraph;
+typedef boost::graph_traits<BoostGraph>::vertex_descriptor Vertex;
+
+BoostGraph make_boost_graph(Graph &graph) {
+    typedef pair<int, int> Edge;
+    vector<Edge> edges;
+    int n_edges = 0;
+    unordered_set<int> vertices;
+    for (const auto &[v1, adj_list]: graph)
+        for (const auto &[v2, w]: adj_list) {
+            ++n_edges;
+            edges.emplace_back(make_pair(v1, v2));
+            vertices.insert(v1);
+            vertices.insert(v2);
+        }
+    vector<int> weights(n_edges, 1);
+    const auto n_vertices{vertices.size()};
+    BoostGraph boost_graph(edges.begin(), edges.end(), weights.begin(), n_vertices);
+    return boost_graph;
+}
+
 
 struct TestCase {
     TestCase(Graph graph, vector<pair<int, int>> test_cases) : graph(std::move(graph)),
@@ -44,12 +66,14 @@ struct TestCase {
     vector<pair<int, int>> queries;
 };
 
+
 void append_adj(Graph &graph, int v1, int v2, int w) {
     if (graph.find(v1) == graph.end())
         graph[v1] = {{v2, w}};
     else
         graph[v1].emplace_back(make_pair(v2, w));
 }
+
 
 TestCase fetch_graph_test_case(const string &file_name) {
     ifstream input_file(file_name);
@@ -78,15 +102,34 @@ TestCase fetch_graph_test_case(const string &file_name) {
     auto res = TestCase(graph, test_cases);
 
     return res;
-
 }
+
+
+Graph fetch_social_media_combined(const string &file_name) {
+    ifstream input_file(file_name);
+    if (!input_file.is_open()) {
+        cout << "File not found: " << file_name << endl;
+        throw std::invalid_argument("File not found: " + file_name);
+    }
+
+    Graph graph;
+    while (!input_file.eof()) {
+        int v1, v2;
+        input_file >> v1 >> v2;
+        append_adj(graph, v1, v2, 1);
+    }
+
+    return graph;
+}
+
 
 template<typename Container, typename Value>
 bool in(Value value, const Container &container) {
     return container.find(value) != container.end();
 }
 
-const auto None = std::numeric_limits<int>::min();
+
+const auto None = numeric_limits<int>::min();
 
 vector<int> backtrack_path(int from_vertex, const map<int, int> &pred) {
     vector<int> path = {from_vertex};
@@ -138,7 +181,7 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink) 
     map<int, int> pred_2 = {{sink, None}};
 
     bool shortest_path_found = false;
-    int shortest_so_far = std::numeric_limits<int>::max();
+    int shortest_so_far = numeric_limits<int>::max();
     int best_vertex1 = None;
     int best_vertex2 = None;
     int step_count;
@@ -157,8 +200,8 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink) 
             for (const auto[vertex2, weight]: graph_1->at(vertex1))
                 if (!in(vertex2, d_1)) {
                     assert(!in(vertex2, processed_1));
-                    d_1[vertex2] = std::numeric_limits<int>::max();
-                    pending_1.emplace(make_pair(std::numeric_limits<int>::max(), vertex2));
+                    d_1[vertex2] = numeric_limits<int>::max();
+                    pending_1.emplace(make_pair(numeric_limits<int>::max(), vertex2));
                 }
             /* Relax edges outgoing from vertex1, whose other end-point hasn't been processed yet, and check if any of
              * them might belong to a shortest path from source to sink */
@@ -231,6 +274,7 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink) 
     return res;
 }
 
+
 TEST_CASE("in") {
     unordered_set<int> s = {1, 3, 5, 7, 9};
     REQUIRE(in(1, s));
@@ -240,35 +284,35 @@ TEST_CASE("in") {
     REQUIRE(in(9, s));
     REQUIRE(!in(0, s));
     REQUIRE(!in(4, s));
-
 }
+
 
 TEST_CASE("bidirectional_dijkstra") {
     auto test_case = fetch_graph_test_case("../../test/test03.txt");
     for (auto query: test_case.queries) {
-        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
-        REQUIRE(length == 5);
+        auto[distance, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(distance == 5);
         REQUIRE(path == vector<int>({0, 1, 4, 5}));
     }
 
     test_case = fetch_graph_test_case("../../test/test04.txt");
     for (auto query: test_case.queries) {
-        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
-        REQUIRE(length == 5);
+        auto[distance, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(distance == 5);
         REQUIRE(path == vector<int>({0, 1, 3, 4}));
     }
 
     test_case = fetch_graph_test_case("../../test/test05.txt");
     for (auto query: test_case.queries) {
-        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
-        REQUIRE(length == 1);
+        auto[distance, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(distance == 1);
         REQUIRE(path == vector<int>({0, 1}));
     }
 
     test_case = fetch_graph_test_case("../../test/test06.txt");
     for (auto query: test_case.queries) {
-        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
-        REQUIRE(length == 3);
+        auto[distance, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(distance == 3);
         REQUIRE(path == vector<int>({0, 1, 2}));
     }
 
@@ -276,14 +320,42 @@ TEST_CASE("bidirectional_dijkstra") {
     vector<int> expected = {0, 0, 1, -1};
     for (int i = 0; i < test_case.queries.size(); ++i) {
         auto query = test_case.queries[i];
-        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
-        REQUIRE(length == expected[i]);
+        auto[distance, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(distance == expected[i]);
     }
 
     test_case = fetch_graph_test_case("../../test/test02.txt");
     for (auto query: test_case.queries) {
-        auto[length, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
-        REQUIRE(length == 3);
+        auto[distance, path] = bidir_dijkstra(test_case.graph, query.first, query.second);
+        REQUIRE(distance == 3);
         REQUIRE(path == vector<int>({1, 2, 3}));
     }
+
+    string file_name = "../../test/facebook_combined.txt";
+    auto graph = fetch_social_media_combined(file_name);
+    std::random_device rd;
+    std::mt19937 generator(rd());
+    std::uniform_int_distribution<> distribution(0, 4031);
+    auto boost_graph = make_boost_graph(graph);
+    std::vector<int> d(num_vertices(boost_graph));
+
+    for (int i = 0; i < 100; ++i) {
+        auto source = distribution(generator);
+        auto sink = distribution(generator);
+        auto boost_source = vertex(source, boost_graph);
+        auto boost_sink = vertex(sink, boost_graph);
+        dijkstra_shortest_paths(boost_graph, boost_source, boost::distance_map(&d[0]));
+        auto boost_distance = d[boost_sink];
+        if (boost_distance == numeric_limits<int>::max())
+            boost_distance = -1;
+        auto[distance, path] = bidir_dijkstra(graph, source, sink);
+        REQUIRE(distance == boost_distance);
+    }
 }
+
+/* TODO
+ * Add twitter test cases
+ * add download of social media datasets
+ * add in-line documentation
+ * check the timing (for fun)
+ * */
