@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <limits>
 #include <random>
+// c++ version 7.4.0 still has "filesystem" under "experimental", even when compiling for C++17
+#include <experimental/filesystem>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 
@@ -33,6 +35,7 @@ using std::unordered_set;
 using std::set;
 using std::swap;
 using std::numeric_limits;
+using std::experimental::filesystem::path;
 
 typedef vector<pair<int, int>> AdjList;
 typedef unordered_map<int, AdjList> Graph;
@@ -77,7 +80,7 @@ void append_adj(Graph &graph, int v1, int v2, int w) {
 
 
 TestCase fetch_graph_test_case(const string &file_name) {
-    ifstream input_file(file_name);
+    ifstream input_file(path(file_name).native());
     if (!input_file.is_open()) {
         cout << "File not found: " << file_name << endl;
         throw std::invalid_argument("File not found: " + file_name);
@@ -106,7 +109,7 @@ TestCase fetch_graph_test_case(const string &file_name) {
 }
 
 vector<tuple<int, int, int>> fetch_twitter_test_case(const string &file_name) {
-    ifstream input_file(file_name);
+    ifstream input_file(path(file_name).native());
     if (!input_file.is_open()) {
         cout << "File not found: " << file_name << endl;
         throw std::invalid_argument("File not found: " + file_name);
@@ -123,7 +126,7 @@ vector<tuple<int, int, int>> fetch_twitter_test_case(const string &file_name) {
 
 
 Graph fetch_social_media_combined(const string &file_name, const bool make_bidirectional = false) {
-    ifstream input_file(file_name);
+    ifstream input_file(path(file_name).native());
     if (!input_file.is_open()) {
         cout << "File not found: " << file_name << endl;
         throw std::invalid_argument("File not found: " + file_name);
@@ -292,33 +295,6 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink, 
     int distance = d_1[best_vertex2] + d_2[best_vertex2];
     assert(distance == shortest_so_far);
 
-    if (!dump_file.empty()) {
-        std::ofstream output_file;
-        output_file.open(dump_file);
-        if (!output_file.is_open()) {
-            cout << "File not found: " << dump_file << endl;
-            throw std::invalid_argument("File not found: " + dump_file);
-        }
-        output_file << "Total no. of vertices " << graph_1->size() << endl;
-        output_file << "graph=" << &graph << " graph_1=" << graph_1 << " graph_2=" << graph_2 << endl;
-        for (const auto & item: d_1)
-            output_file << "d_1[" << item.first << "]=" << item.second << endl;
-        for (const auto & item: d_2)
-            output_file << "d_2[" << item.first << "]=" << item.second << endl;
-        for (const auto & item: pred_1)
-            output_file << "pred_1[" << item.first << "]=" << item.second << endl;
-        for (const auto & item: pred_2)
-            output_file << "pred_2[" << item.first << "]=" << item.second << endl;
-        for (const auto & item: *graph_1)
-            for (const auto & adj: item.second)
-                output_file << item.first << "g1" << adj.first << " " << adj.second << endl;
-        for (const auto & item: *graph_2)
-            for (const auto & adj: item.second)
-                output_file << item.first << "g2" << adj.first << " " << adj.second << endl;
-
-
-        output_file.close();
-    }
     const auto res = make_pair(distance, shortest_path);
     return res;
 }
@@ -421,13 +397,10 @@ TEST_CASE("bidirectional_dijkstra") {
             REQUIRE(distance == expected);
         }
     }
-
 }
 
 /* TODO
- * Add twitter test cases
- * add download of social media datasets
+  * add download of social media datasets
  * add in-line documentation
  * check the timing (for fun)
- * add portable paths, using Boost Filesystem
- * */
+  * */
