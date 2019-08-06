@@ -1,4 +1,3 @@
-#include <fstream>
 #include <iostream>
 #include <utility>
 #include <algorithm>
@@ -48,8 +47,6 @@ using std::experimental::filesystem::remove;
 typedef vector<pair<int, int>> AdjList;
 typedef unordered_map<int, AdjList> Graph;
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, boost::no_property, boost::property<boost::edge_weight_t, int>> BoostGraph;
-typedef boost::graph_traits<BoostGraph>::vertex_descriptor Vertex;
-typedef boost::property_map<BoostGraph, boost::vertex_index_t>::type IndexMap;
 
 BoostGraph make_boost_graph(Graph &graph) {
     typedef pair<int, int> Edge;
@@ -70,6 +67,23 @@ BoostGraph make_boost_graph(Graph &graph) {
 }
 
 
+void append_adj(Graph &graph, int v1, int v2, int w)
+/**
+ * Add an edge to a directed graph, with a given weight. It is possible to have multiple edges, with the same
+ * orientation, between the same two vertices.
+ * @param graph the graph.
+ * @param v1 the vertex from where the edge originates.
+ * @param v2 the vertex where the edge goes.
+ * @param w the weight for the edge.
+ */
+{
+    if (graph.find(v1) == graph.end())
+        graph[v1] = {{v2, w}};
+    else
+        graph[v1].emplace_back(make_pair(v2, w));
+}
+
+
 struct TestCase {
     TestCase(Graph graph, vector<pair<int, int>> test_cases) : graph(std::move(graph)),
                                                                queries(std::move(test_cases)) {}
@@ -77,14 +91,6 @@ struct TestCase {
     Graph graph;
     vector<pair<int, int>> queries;
 };
-
-
-void append_adj(Graph &graph, int v1, int v2, int w) {
-    if (graph.find(v1) == graph.end())
-        graph[v1] = {{v2, w}};
-    else
-        graph[v1].emplace_back(make_pair(v2, w));
-}
 
 
 TestCase fetch_graph_test_case(const string &file_name) {
@@ -154,7 +160,16 @@ Graph fetch_social_media_combined(const string &file_name, const bool make_bidir
 
 
 template<typename Container, typename Value>
-bool in(Value value, const Container &container) {
+bool in(Value value, const Container &container)
+/**
+ * Verifies if a given values is in a given container.
+ * @tparam Container the container type. It must implement method find().
+ * @tparam Value the value type.
+ * @param value the given value.
+ * @param container the given container.
+ * @return true if the given value is found in the container, false otherwise.
+ */
+{
     return container.find(value) != container.end();
 }
 
@@ -173,7 +188,18 @@ vector<int> backtrack_path(int from_vertex, const map<int, int> &pred) {
 }
 
 
-pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink, const string &dump_file = "") {
+pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink)
+/**
+ * Returns the length of the shortest path, and the shortest path, in a weighted, directed graph. They are computed
+ * using bi-directional Dijkstra. Weights are assumed to be non-negative.
+ * @param graph the directed, weighted graph.
+ * @param source the source vertex in the graph, where the shortest path must begin.
+ * @param sink the sink (destination) vertex in the graph, where the shortest path must end.
+ * @return a pair with the length of and the sequence of vertices along it. If there are multiple shortest paths,
+ * then one of them is returned in the vector. If sink is not reachable from source, that is there isn't any path in
+ * the graph from source to sink, then returns the pair -1, {}.
+ */
+{
     if (source == sink)
         return make_pair<int, vector<int>>(0, {});
 
@@ -267,8 +293,8 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink, 
             if (l1 + l2 >= shortest_so_far)
                 shortest_path_found = true;
         }
-        /* Trade the information related to the two directions, as steps of the Dijkstra algorithms will alternate
-         * between them */
+        /* Swap the information related to the two directions, as steps of the Dijkstra algorithms will alternate
+         * between them. */
         if (!shortest_path_found) {
             swap(graph_1, graph_2);
             pending_1.swap(pending_2);
@@ -278,8 +304,8 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink, 
         }
     }
 
-    /* If you got here, a shortest path from source to sink was found, and it goes through edge (best_vertex1,
-     * best_vertex2). */
+    /* If you got here, a shortest path from source to sink was found, and it goes through edges best_vertex1 and
+     * best_vertex2 (but not necessarily in that order). */
     assert(best_vertex1 != None);
     assert(best_vertex2 != None);
 
@@ -307,10 +333,13 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink, 
     return res;
 }
 
+
+// Useful to download a file via curl.
 static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream) {
     size_t written = fwrite(ptr, size, nmemb, (FILE *) stream);
     return written;
 }
+
 
 bool fetch_as_needed(const string &file_name, const string &url) {
     auto native_name = path(file_name).native();
@@ -326,11 +355,8 @@ bool fetch_as_needed(const string &file_name, const string &url) {
 
             auto pagefile = std::fopen(gz_native_name.c_str(), "wb");
             if (pagefile) {
-                /* write the page body to this file handle */
                 curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);
-                /* get it! */
                 curl_easy_perform(curl_handle);
-                /* close the header file */
                 fclose(pagefile);
             }
             curl_easy_cleanup(curl_handle);
@@ -353,6 +379,7 @@ bool fetch_as_needed(const string &file_name, const string &url) {
     return exists(native_name);
 }
 
+
 TEST_CASE("in") {
     unordered_set<int> s = {1, 3, 5, 7, 9};
     REQUIRE(in(1, s));
@@ -366,7 +393,6 @@ TEST_CASE("in") {
 
 
 TEST_CASE("bidirectional_dijkstra") {
-
     SECTION("small input") {
         auto test_case = fetch_graph_test_case("../../test/test03.txt");
         for (auto query: test_case.queries) {
@@ -457,6 +483,6 @@ TEST_CASE("bidirectional_dijkstra") {
 }
 
 /* TODO
- * add in-line documentation
  * check the timing (for fun)
+ * separate unit-tests from the rest.
   * */

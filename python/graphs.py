@@ -7,7 +7,7 @@ def bidir_dijkstra(graph, source, sink):
     :param graph: the directed graph, a nx.DiGraph, where property 'weight' of each edge stores the length for that edge.
     :param source: the source vertex in the graph, where the shortest path must begin.
     :param sink: the sink (destination) vertex in the graph, where the shortest path must end.
-    :return: a tuple  with the length of the shortest path and the list of vertices along it. If there are multiple shortest paths, then one of them is returned. If sink is not reachable from source, that is there isn't any path in the graph from source to sink, then returns the tuple -1, [].
+    :return: a tuple with the length of the shortest path and the list of vertices along it. If there are multiple shortest paths, then one of them is returned. If sink is not reachable from source, that is there isn't any path in the graph from source to sink, then returns the tuple -1, [].
     """
 
     if source == sink:
@@ -102,7 +102,7 @@ def bidir_dijkstra(graph, source, sink):
             processed_1, processed_2 = processed_2, processed_1
             pred_1, pred_2 = pred_2, pred_1
 
-    # A shortest path from source to sink was found, and it must go through best_vertex1 and then best_vertex2
+    # A shortest path from source to sink was found, and it must go through best_vertex1 and best_vertex2
     assert best_vertex1 is not None
     assert best_vertex2 is not None
 
