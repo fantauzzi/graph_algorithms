@@ -16,6 +16,6 @@ endif()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
 
-add_executable(graphs graphs.cpp)
+add_executable(graphs graphs.cpp graphs_test.cpp graphs.h)
 
 set(CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -lstdc++fs -lcurl -lboost_iostreams")
