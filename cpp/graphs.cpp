@@ -1,3 +1,4 @@
+#include <fstream>
 #include <iostream>
 #include <utility>
 #include <algorithm>
@@ -13,6 +14,11 @@
 #include <experimental/filesystem>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
+#include <boost/iostreams/filtering_streambuf.hpp>
+#include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
+#include <curl/curl.h>
+#include <cstdio>
 
 #define CATCH_CONFIG_MAIN
 
@@ -36,6 +42,8 @@ using std::set;
 using std::swap;
 using std::numeric_limits;
 using std::experimental::filesystem::path;
+using std::experimental::filesystem::exists;
+using std::experimental::filesystem::remove;
 
 typedef vector<pair<int, int>> AdjList;
 typedef unordered_map<int, AdjList> Graph;
@@ -165,7 +173,7 @@ vector<int> backtrack_path(int from_vertex, const map<int, int> &pred) {
 }
 
 
-pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink, const string & dump_file="") {
+pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink, const string &dump_file = "") {
     if (source == sink)
         return make_pair<int, vector<int>>(0, {});
 
@@ -207,8 +215,8 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink, 
     int counter_at_shortest_path = None;
     int best_vertex1 = None;
     int best_vertex2 = None;
-    int step_counter=-1;
-    while(!shortest_path_found) {
+    int step_counter = -1;
+    while (!shortest_path_found) {
         ++step_counter;
         // One step of Dijkstra, along on of the two directions
         if (pending_1.empty()) // No more pending vertices => sink is not reachable from source
@@ -299,6 +307,51 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink, 
     return res;
 }
 
+static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream) {
+    size_t written = fwrite(ptr, size, nmemb, (FILE *) stream);
+    return written;
+}
+
+bool fetch_as_needed(const string &file_name, const string &url) {
+    auto native_name = path(file_name).native();
+    auto gz_native_name = path(file_name + ".gz").native();
+    if (!exists(native_name)) {
+        if (!exists(gz_native_name)) {
+            cout << "Donwloading " << gz_native_name << endl;
+            curl_global_init(CURL_GLOBAL_ALL);
+            auto curl_handle = curl_easy_init();
+            curl_easy_setopt(curl_handle, CURLOPT_URL, url.c_str());
+            // curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, 1L);
+            curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_data);
+
+            auto pagefile = std::fopen(gz_native_name.c_str(), "wb");
+            if (pagefile) {
+                /* write the page body to this file handle */
+                curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);
+                /* get it! */
+                curl_easy_perform(curl_handle);
+                /* close the header file */
+                fclose(pagefile);
+            }
+            curl_easy_cleanup(curl_handle);
+            curl_global_cleanup();
+        }
+        if (exists(gz_native_name)) {
+            cout << "Unzipping " << gz_native_name << " into " << native_name << endl;
+            std::ofstream output_file;
+            output_file.open(native_name);
+            ifstream file(gz_native_name, std::ios_base::in | std::ios_base::binary);
+            boost::iostreams::filtering_streambuf<boost::iostreams::input> in;
+            in.push(boost::iostreams::gzip_decompressor());
+            in.push(file);
+            boost::iostreams::copy(in, output_file);
+            output_file.close();
+            if (exists(gz_native_name))
+                remove(gz_native_name);
+        }
+    }
+    return exists(native_name);
+}
 
 TEST_CASE("in") {
     unordered_set<int> s = {1, 3, 5, 7, 9};
@@ -362,6 +415,8 @@ TEST_CASE("bidirectional_dijkstra") {
     SECTION("facebook") {
 
         string file_name = "../../test/facebook_combined.txt";
+        bool ok = fetch_as_needed(file_name, "https://snap.stanford.edu/data/facebook_combined.txt.gz");
+        REQUIRE(ok);
         auto graph = fetch_social_media_combined(file_name, true);
         std::random_device rd;
         std::mt19937 generator(rd());
@@ -388,6 +443,8 @@ TEST_CASE("bidirectional_dijkstra") {
 
     SECTION("twitter") {
         string file_name = "../../test/twitter_combined.txt";
+        bool ok = fetch_as_needed(file_name, "https://snap.stanford.edu/data/twitter_combined.txt.gz");
+        REQUIRE(ok);
         auto graph = fetch_social_media_combined(file_name);
         auto test_cases = fetch_twitter_test_case("../../test/twitter_tcs.txt");
 
@@ -400,7 +457,6 @@ TEST_CASE("bidirectional_dijkstra") {
 }
 
 /* TODO
-  * add download of social media datasets
  * add in-line documentation
  * check the timing (for fun)
   * */
