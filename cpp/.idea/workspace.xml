@@ -12,13 +12,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="3d195f59-4045-4c67-b473-246158105eab" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../python/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graphs.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/graphs.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/graphs_test.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/graphs_test.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../python/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../python/test_graphs.py" beforeDir="false" afterPath="$PROJECT_DIR$/../python/test_graphs.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../test/twitter_tcs.txt" beforeDir="false" afterPath="$PROJECT_DIR$/../test/twitter_tcs.txt" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -114,6 +110,8 @@
       <workItem from="1565096728740" duration="750000" />
       <workItem from="1565097817446" duration="111000" />
       <workItem from="1565098202931" duration="244000" />
+      <workItem from="1565122356266" duration="12000" />
+      <workItem from="1565128157656" duration="900000" />
     </task>
     <servers />
   </component>

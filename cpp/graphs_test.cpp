@@ -160,7 +160,6 @@ bool fetch_as_needed(const string &file_name, const string &url) {
             curl_easy_setopt(curl_handle, CURLOPT_URL, url.c_str());
             // curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, 1L);
             curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_data);
-
             auto pagefile = std::fopen(gz_native_name.c_str(), "wb");
             if (pagefile) {
                 curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);

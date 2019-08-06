@@ -61,20 +61,6 @@ bool in(Value value, const Container &container)
 }
 
 
-const auto None = numeric_limits<int>::min();
-
-vector<int> backtrack_path(int from_vertex, const map<int, int> &pred) {
-    vector<int> path = {from_vertex};
-    auto previous = pred.at(from_vertex);
-    while (previous != None) {
-        path.emplace_back(previous);
-        previous = pred.at(previous);
-    }
-
-    return path;
-}
-
-
 pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink)
 /**
  * Returns the length of the shortest path, and the shortest path, in a weighted, directed graph. They are computed
@@ -87,6 +73,8 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink)
  * the graph from source to sink, then returns the pair -1, {}.
  */
 {
+    const auto None = numeric_limits<int>::min();
+
     if (source == sink)
         return make_pair<int, vector<int>>(0, {});
 
@@ -196,6 +184,16 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink)
     assert(best_vertex1 != None);
     assert(best_vertex2 != None);
 
+    auto backtrack_path = [](int from_vertex, const map<int, int> &pred) {
+        vector<int> path = {from_vertex};
+        auto previous = pred.at(from_vertex);
+        while (previous != None) {
+            path.emplace_back(previous);
+            previous = pred.at(previous);
+        }
+        return path;
+    };
+
     /* Stitch together the shortest path as:
      * source -> ... -> vertex1 -> best_vertex2 -> ... -> sink''' */
     vector<int> sub_path_1, sub_path_2;
@@ -219,7 +217,3 @@ pair<int, vector<int>> bidir_dijkstra(const Graph &graph, int source, int sink)
     const auto res = make_pair(distance, shortest_path);
     return res;
 }
-
-
-
-
