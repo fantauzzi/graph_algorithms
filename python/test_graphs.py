@@ -5,6 +5,7 @@ import random
 from pathlib import Path
 import networkx as nx
 from graphs import bidir_dijkstra
+import time
 
 
 def fetch_gzip(file_name, url):
@@ -134,7 +135,8 @@ def test_bidir_dijkstra():
 
     random.seed(42)
     # with open(Path('../test/twitter_tcs.txt'), 'wt') as output_file:
-    for i in range(10):
+    print()
+    for i in range(0):
         source = random.choice(nodes)
         sink = random.choice(nodes)
         try:

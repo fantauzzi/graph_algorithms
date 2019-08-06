@@ -16,6 +16,7 @@
 #include <boost/iostreams/filter/gzip.hpp>
 #include <curl/curl.h>
 #include <cstdio>
+#include <ctime>
 
 #define CATCH_CONFIG_MAIN
 
@@ -200,6 +201,12 @@ TEST_CASE("in") {
 
 
 TEST_CASE("bidirectional_dijkstra") {
+    /* Downloads datasets from "SNAP Datasets: Stanford Large Network Dataset Collection
+     * Jure Leskovec and Andrej Krevl
+     * http://snap.stanford.edu/data
+     * June, 2014
+     */
+
     SECTION("small input") {
         auto test_case = fetch_graph_test_case("../../test/test03.txt");
         for (auto query: test_case.queries) {
